@@ -3,10 +3,8 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
-#include <linux/tcp.h>
-#include <linux/udp.h>
-#include <linux/ip.h>
 #include <netinet/in.h>
 #include <unistd.h>
 
@@ -34,18 +32,49 @@ int next_packet(pcaprec_hdr_t *packet_header, FILE *file, int sockfd,
 	return 1;
 }
 
+struct pcap_replay_args{
+	char *interface_name;
+	char *file_path;
+};
+
+int parse_cmd_args(int argc, char **argv, struct pcap_replay_args *args){
+
+	memset(args, 0, sizeof(*args));
+
+	int c;
+	while ((c = getopt (argc, argv, "i:f:")) != -1){
+		switch(c){
+		case 'i':
+			args->interface_name = optarg;
+			break;
+		case 'f':
+			args->file_path = optarg;
+			break;
+		}
+	}
+
+	if(!args->file_path) {
+		fprintf(stderr, "missing file path\n");
+		return 0;
+	}
+
+	if(!args->interface_name){
+		fprintf(stderr, "missing interface name\n");
+		return 0;
+	}
+
+	return 1;
+}
 
 int main(int argc, char *argv[]){
 
-	if(argc != 2){
-		fprintf(stderr, "Unexpected number of parameters (%d)\n", argc);
+	struct pcap_replay_args args;
+	if(!parse_cmd_args(argc, argv, &args))
 		exit(EXIT_FAILURE);
-	}
 
-	char *file_path = argv[1];
 	FILE *file;
 
-	if((file = fopen(file_path, "rb")) == NULL)	{
+	if((file = fopen(args.file_path, "rb")) == NULL)	{
 		perror("Failed to open file");
 		exit(EXIT_FAILURE);
 	}
@@ -60,7 +89,7 @@ int main(int argc, char *argv[]){
 			global_header.version_major, global_header.version_minor);
 
 	int sockfd = create_socket();
-	struct sockaddr_ll socket_address = init_socket_addr(sockfd);
+	struct sockaddr_ll socket_address = init_socket_addr(sockfd, args.interface_name);
 
 	int packet_count = 0;
 	struct timeval last_time;

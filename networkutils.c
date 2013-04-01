@@ -30,8 +30,7 @@ int create_socket() {
 	return sockfd;
 }
 
-struct sockaddr_ll init_socket_addr(int sockfd) {
-	const char *interface_name = "lo";
+struct sockaddr_ll init_socket_addr(int sockfd, const char * interface_name) {
 
 	struct ifreq if_idx;
 	struct ifreq if_mac;
