@@ -73,7 +73,6 @@ int main(int argc, char *argv[]){
 		exit(EXIT_FAILURE);
 
 	FILE *file;
-
 	if((file = fopen(args.file_path, "rb")) == NULL)	{
 		perror("Failed to open file");
 		exit(EXIT_FAILURE);
@@ -85,11 +84,10 @@ int main(int argc, char *argv[]){
 		exit(EXIT_FAILURE);
 	}
 
-	printf("global header was read (version major: %u, minor: %u)\n",
-			global_header.version_major, global_header.version_minor);
-
-	int sockfd = create_socket();
-	struct sockaddr_ll socket_address = init_socket_addr(sockfd, args.interface_name);
+	int sockfd;
+	struct sockaddr_ll socket_address;
+	if(!init_socket(args.interface_name, &sockfd, &socket_address))
+		exit(EXIT_FAILURE);
 
 	int packet_count = 0;
 	struct timeval last_time;
