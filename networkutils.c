@@ -136,6 +136,14 @@ int resolve_mac(const char *ip, unsigned char mac[ETH_ALEN]){
 	do{
 		char mac_str[18] = {0};
 		if(resolve_mac_from_arp_table(ip, mac_str)){
+
+			int i;
+			for(i = 0; i < ETH_ALEN; ++i){
+				char str[2];
+				memccpy(str, mac_str + (3 * i), 1, 2);
+				mac[i] = strtoul(str, NULL, 16);
+			}
+
 			printf("resolved MAC: %s for IP: %s\n", mac_str, ip);
 			retcode = 1;
 			break;
