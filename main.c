@@ -13,13 +13,16 @@ int parse_cmd_args(int argc, char **argv, struct pcap_replay_args *args){
 	memset(args, 0, sizeof(*args));
 
 	int c;
-	while ((c = getopt (argc, argv, "i:f:")) != -1){
+	while ((c = getopt (argc, argv, "i:f:d:")) != -1){
 		switch(c){
 		case 'i':
 			args->interface_name = optarg;
 			break;
 		case 'f':
 			args->file_path = optarg;
+			break;
+		case 'd':
+			args->override_dest_ip = optarg;
 			break;
 		}
 	}

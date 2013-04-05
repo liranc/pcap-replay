@@ -8,8 +8,6 @@
 
 #include <net/if.h>
 #include <linux/ip.h>
-#include <linux/if_packet.h>
-#include <linux/if_ether.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
@@ -160,4 +158,39 @@ int resolve_mac(const char *ip, unsigned char mac[ETH_ALEN]){
 
 	close(dummy_sockfd);
 	return retcode;
+}
+
+unsigned short checksum(unsigned short *ptr, int length){
+	register int sum = 0;
+	u_short answer = 0;
+	register u_short *w = ptr;
+	register int nleft = length;
+
+	while(nleft > 1){
+		sum += *w++;
+		nleft -= 2;
+	}
+
+	sum = (sum >> 16) + (sum & 0xFFFF);
+	sum += (sum >> 16);
+	answer = ~sum;
+	return(answer);
+}
+
+int modify_packet(unsigned char *body, struct override_fields overrides){
+
+	struct ethhdr *eth_hdr = (struct ethhdr*)body;
+	struct iphdr *ip_hdr = (struct iphdr*)(body + sizeof(*eth_hdr));
+
+	if(overrides.dest_ip){
+		ip_hdr->daddr = *overrides.dest_ip;
+		ip_hdr->check = 0;
+		ip_hdr->check = checksum((unsigned short*)ip_hdr, sizeof(*ip_hdr));
+	}
+
+	if(overrides.mac){
+		memccpy(eth_hdr->h_dest, overrides.mac, ETH_ALEN, sizeof(unsigned char));
+	}
+
+	return 1;
 }
