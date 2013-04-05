@@ -16,12 +16,12 @@ int next_packet(pcaprec_hdr_t *packet_header, FILE *file, int sockfd,
 	unsigned char *body = (unsigned char*)malloc(packet_header->incl_len);
 	fread(body, 1, packet_header->incl_len, file);
 
-	if(!is_supported_packet((struct ethhdr*)body))
-		return 0;
+	if(is_supported_packet((struct ethhdr*)body)){
 
-	if(sendto(sockfd, body, packet_header->incl_len, 0, (struct sockaddr*)socket_address,
-			sizeof(*socket_address)) == -1){
-		perror("failed to send packet");
+		if(sendto(sockfd, body, packet_header->incl_len, 0, (struct sockaddr*)socket_address,
+				sizeof(*socket_address)) == -1){
+			perror("failed to send packet");
+		}
 	}
 
 	free(body);
