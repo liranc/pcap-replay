@@ -10,6 +10,7 @@
 #include <netinet/ip_icmp.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
+#include <ifaddrs.h>
 #include <unistd.h>
 
 int init_socket(const char * interface_name, int *sockfd, struct sockaddr_ll *addr) {
@@ -128,7 +129,55 @@ uint16_t checksum(unsigned short *ptr, int length){
 	return(answer);
 }
 
-int resolve_mac(const char *ip, unsigned char mac[ETH_ALEN]){
+int resolve_local_mac(const char* ip, unsigned char mac[ETH_ALEN]){
+	struct in_addr lookup;
+	inet_aton(ip, &lookup);
+
+	struct ifaddrs *addrs;
+	getifaddrs(&addrs);
+
+	char *ifname = NULL;
+	struct ifaddrs *iter;
+	for(iter = addrs; iter != NULL; iter = iter->ifa_next){
+		if(iter->ifa_addr->sa_family != AF_INET)
+			continue;
+
+		struct sockaddr_in *cur_ip = (struct sockaddr_in*)iter->ifa_addr;
+		if(cur_ip->sin_addr.s_addr == lookup.s_addr){
+			ifname = iter->ifa_name;
+			break;
+		}
+	}
+
+	freeifaddrs(addrs);
+
+	if(!ifname){
+		fprintf(stderr, "couldn't find interface for IP: %s", ip);
+		return 0;
+	}
+
+	struct ifreq s;
+	strcpy(s.ifr_name, ifname);
+	int dummy_fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+	if(dummy_fd == -1){
+		perror("failed to create dummy socket");
+		return 0;
+	}
+
+	int found = 0;
+	if(ioctl(dummy_fd, SIOCGIFHWADDR, &s) == 0){
+		memcpy(mac, s.ifr_addr.sa_data, ETH_ALEN * sizeof(unsigned char));
+		found = 1;
+	}
+	else
+		perror("SIOCGIFHWADDR");
+
+	close(dummy_fd);
+
+	return found;
+}
+
+int resolve_remote_mac(const char *ip, unsigned char mac[ETH_ALEN]){
 
 	int icmp_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	if(icmp_fd == -1){
@@ -155,7 +204,7 @@ int resolve_mac(const char *ip, unsigned char mac[ETH_ALEN]){
 			int i;
 			for(i = 0; i < ETH_ALEN; ++i){
 				char str[3] = {0};
-				memccpy(str, mac_str + (3 * i), 1, 2);
+				memcpy(str, mac_str + (3 * i), 2);
 				mac[i] = (unsigned char)strtoul(str, NULL, 16);
 			}
 
@@ -179,20 +228,23 @@ int resolve_mac(const char *ip, unsigned char mac[ETH_ALEN]){
 	return retcode;
 }
 
-int modify_packet(unsigned char *body, struct override_fields overrides){
+void modify_packet(unsigned char *body, struct override_fields overrides){
 
 	struct ethhdr *eth_hdr = (struct ethhdr*)body;
 	struct iphdr *ip_hdr = (struct iphdr*)(body + sizeof(*eth_hdr));
 
-	if(overrides.dest_ip){
+	if(overrides.dest_ip)
 		ip_hdr->daddr = *overrides.dest_ip;
-		ip_hdr->check = 0;
-		ip_hdr->check = checksum((unsigned short*)ip_hdr, sizeof(*ip_hdr));
-	}
 
-	if(overrides.mac){
-		memccpy(eth_hdr->h_dest, overrides.mac, ETH_ALEN, sizeof(unsigned char));
-	}
+	if(overrides.dest_mac)
+		memcpy(eth_hdr->h_dest, overrides.dest_mac, ETH_ALEN * sizeof(unsigned char));
 
-	return 1;
+	if(overrides.src_ip)
+		ip_hdr->saddr = *overrides.src_ip;
+
+	if(overrides.src_mac)
+		memcpy(eth_hdr->h_source, overrides.src_mac, ETH_ALEN * sizeof(unsigned char));
+
+	ip_hdr->check = 0;
+	ip_hdr->check = checksum((unsigned short*)ip_hdr, sizeof(*ip_hdr));
 }

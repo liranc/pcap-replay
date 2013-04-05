@@ -12,7 +12,7 @@ int parse_cmd_args(int argc, char **argv, struct pcap_replay_args *args){
 	int c;
 	memset(args, 0, sizeof(*args));
 
-	while ((c = getopt (argc, argv, "i:f:d:")) != -1){
+	while ((c = getopt (argc, argv, "i:f:d:s:")) != -1){
 		switch(c){
 		case 'i':
 			args->interface_name = optarg;
@@ -21,7 +21,10 @@ int parse_cmd_args(int argc, char **argv, struct pcap_replay_args *args){
 			args->file_path = optarg;
 			break;
 		case 'd':
-			args->override_dest_ip = optarg;
+			args->override_dst_ip = optarg;
+			break;
+		case 's':
+			args->override_src_ip = optarg;
 			break;
 		}
 	}

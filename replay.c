@@ -19,16 +19,13 @@ int next_packet(pcaprec_hdr_t *packet_header, FILE *file, int sockfd,
 	int sent = 0;
 	if(is_supported_packet((struct ethhdr*)body)){
 
-		if(modify_packet(body, overrides)){
+		modify_packet(body, overrides);
 
-			if(sendto(sockfd, body, packet_header->incl_len, 0,
-					(struct sockaddr*)socket_address,
-					sizeof(*socket_address)) == -1)
-				perror("failed to send packet");
-			else
-				sent = 1;
-
-		}
+		if(sendto(sockfd, body, packet_header->incl_len, 0,
+				(struct sockaddr*)socket_address, sizeof(*socket_address)) == -1)
+			perror("failed to send packet");
+		else
+			sent = 1;
 	}
 
 	free(body);
@@ -63,13 +60,26 @@ void replay(const struct pcap_replay_args *args) {
 	struct timeval last_time;
 	last_time.tv_sec = -1;
 
-	if(args->override_dest_ip){
+	if(args->override_dst_ip){
 		overrides.dest_ip = malloc(sizeof(overrides.dest_ip));
-		overrides.mac = malloc(sizeof(unsigned char) * ETH_ALEN);
+		overrides.dest_mac = malloc(sizeof(unsigned char) * ETH_ALEN);
 
-		*overrides.dest_ip = inet_addr(args->override_dest_ip);
-		if(!resolve_mac(args->override_dest_ip, overrides.mac))
+		*overrides.dest_ip = inet_addr(args->override_dst_ip);
+		if(!resolve_remote_mac(args->override_dst_ip, overrides.dest_mac)){
+			fprintf(stderr, "failed to resolve dst-override mac");
 			goto cleanup;
+		}
+	}
+
+	if(args->override_src_ip){
+		overrides.src_ip = malloc(sizeof(overrides.src_ip));
+		overrides.src_mac = malloc(sizeof(unsigned char) * ETH_ALEN);
+
+		*overrides.src_ip = inet_addr(args->override_src_ip);
+		if(!resolve_local_mac(args->override_src_ip, overrides.src_mac)){
+			fprintf(stderr, "failed to resolve src-override mac");
+			goto cleanup;
+		}
 	}
 
 	pcaprec_hdr_t packet_header;
@@ -86,7 +96,7 @@ void replay(const struct pcap_replay_args *args) {
 
 	cleanup:
 	free(overrides.dest_ip);
-	free(overrides.mac);
+	free(overrides.dest_mac);
 	close(sockfd);
 	fclose(file);
 }
