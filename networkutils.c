@@ -139,7 +139,7 @@ int resolve_mac(const char *ip, unsigned char mac[ETH_ALEN]){
 
 			int i;
 			for(i = 0; i < ETH_ALEN; ++i){
-				char str[2];
+				char str[3] = {0};
 				memccpy(str, mac_str + (3 * i), 1, 2);
 				mac[i] = strtoul(str, NULL, 16);
 			}
