@@ -1,11 +1,9 @@
-
 #include "networkutils.h"
 
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
-
 
 #include <net/if.h>
 #include <netinet/in.h>

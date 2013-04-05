@@ -1,5 +1,5 @@
-
 #include "timeutils.h"
+
 #include <unistd.h>
 
 struct timeval timeval_subtract (struct timeval *x, struct timeval *y)
