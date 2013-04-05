@@ -6,9 +6,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+
 #include <net/if.h>
-#include <linux/ip.h>
 #include <netinet/in.h>
+#include <netinet/ip_icmp.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -112,22 +113,40 @@ int resolve_mac_from_arp_table(const char *lookup_ip, char *mac){
 	return found;
 }
 
+uint16_t checksum(unsigned short *ptr, int length){
+	register int sum = 0;
+	uint16_t answer = 0;
+	register u_short *w = ptr;
+	register int nleft = length;
+
+	while(nleft > 1){
+		sum += *w++;
+		nleft -= 2;
+	}
+
+	sum = (sum >> 16) + (sum & 0xFFFF);
+	sum += (sum >> 16);
+	answer = (uint16_t)~sum;
+	return(answer);
+}
+
 int resolve_mac(const char *ip, unsigned char mac[ETH_ALEN]){
 
-	int dummy_sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if(dummy_sockfd == -1){
-		perror("failed to create mac resolving socket");
+	int icmp_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+	if(icmp_fd == -1){
+		perror("failed to create icmp socket");
 		return 0;
 	}
 
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_port = 8872;
-	inet_aton(ip, &addr.sin_addr);
-	if(connect(dummy_sockfd, (struct sockaddr*)&addr, sizeof(addr)) == -1){
-		perror("failed to connect dummy socket");
-		return 0;
-	}
+	struct sockaddr_in dest = {0};
+	dest.sin_family = AF_INET;
+	inet_aton(ip, &dest.sin_addr);
+
+	struct icmphdr hdr = {0};
+	hdr.type = ICMP_ECHO;
+	hdr.code = 0;
+	hdr.un.echo.id = (uint16_t)getpid();
+	hdr.checksum = checksum((unsigned short*)&hdr, sizeof(hdr));
 
 	int retcode = 0;
 	clock_t start_time = clock();
@@ -148,7 +167,9 @@ int resolve_mac(const char *ip, unsigned char mac[ETH_ALEN]){
 		}
 		else{
 			printf("MAC address for %s wasn't found in ARP table. Resolving...\n", ip);
-			write(dummy_sockfd, NULL, 0);
+			sendto(icmp_fd, &hdr, sizeof(hdr), 0, (struct sockaddr*)&dest, sizeof(dest));
+			++hdr.un.echo.sequence;
+			hdr.checksum = checksum((unsigned short*)&hdr, sizeof(hdr));
 			sleep(1);
 		}
 	} while(((clock() - start_time) * 1000 / CLOCKS_PER_SEC) < 10000);
@@ -156,25 +177,8 @@ int resolve_mac(const char *ip, unsigned char mac[ETH_ALEN]){
 	if(!retcode)
 		fprintf(stderr, "failed to resolve MAC address for IP: %s", ip);
 
-	close(dummy_sockfd);
+	close(icmp_fd);
 	return retcode;
-}
-
-unsigned short checksum(unsigned short *ptr, int length){
-	register int sum = 0;
-	u_short answer = 0;
-	register u_short *w = ptr;
-	register int nleft = length;
-
-	while(nleft > 1){
-		sum += *w++;
-		nleft -= 2;
-	}
-
-	sum = (sum >> 16) + (sum & 0xFFFF);
-	sum += (sum >> 16);
-	answer = (u_short)~sum;
-	return(answer);
 }
 
 int modify_packet(unsigned char *body, struct override_fields overrides){
