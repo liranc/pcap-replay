@@ -139,7 +139,7 @@ int resolve_mac(const char *ip, unsigned char mac[ETH_ALEN]){
 			for(i = 0; i < ETH_ALEN; ++i){
 				char str[3] = {0};
 				memccpy(str, mac_str + (3 * i), 1, 2);
-				mac[i] = strtoul(str, NULL, 16);
+				mac[i] = (unsigned char)strtoul(str, NULL, 16);
 			}
 
 			printf("resolved MAC: %s for IP: %s\n", mac_str, ip);
@@ -173,7 +173,7 @@ unsigned short checksum(unsigned short *ptr, int length){
 
 	sum = (sum >> 16) + (sum & 0xFFFF);
 	sum += (sum >> 16);
-	answer = ~sum;
+	answer = (u_short)~sum;
 	return(answer);
 }
 

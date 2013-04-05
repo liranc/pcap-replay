@@ -6,12 +6,12 @@ struct timeval timeval_subtract (struct timeval *x, struct timeval *y)
 {
 	/* Perform the carry for the later subtraction by updating y. */
 	if (x->tv_usec < y->tv_usec) {
-		int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+		int nsec = (int)((y->tv_usec - x->tv_usec) / 1000000 + 1);
 		y->tv_usec -= 1000000 * nsec;
 		y->tv_sec += nsec;
 	}
 	if (x->tv_usec - y->tv_usec > 1000000) {
-		int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+		int nsec = (int)((x->tv_usec - y->tv_usec) / 1000000);
 		y->tv_usec += 1000000 * nsec;
 		y->tv_sec -= nsec;
 	}
@@ -35,7 +35,7 @@ struct timeval wait_until_next(struct timeval *last, struct pcaprec_hdr_s *next)
 
 		struct timeval diff = timeval_subtract(&next_time, last);
 
-		unsigned long time_in_micros = 1000000 * diff.tv_sec + diff.tv_usec;
+		useconds_t time_in_micros = (useconds_t)(1000000 * diff.tv_sec + diff.tv_usec);
 		usleep(time_in_micros);
 	}
 

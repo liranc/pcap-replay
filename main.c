@@ -10,9 +10,9 @@
 
 int parse_cmd_args(int argc, char **argv, struct pcap_replay_args *args){
 
+	int c;
 	memset(args, 0, sizeof(*args));
 
-	int c;
 	while ((c = getopt (argc, argv, "i:f:d:")) != -1){
 		switch(c){
 		case 'i':
