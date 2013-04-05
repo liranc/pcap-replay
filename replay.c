@@ -17,6 +17,7 @@ int next_packet(pcaprec_hdr_t *packet_header, FILE *file, int sockfd,
 	unsigned char *body = (unsigned char*)malloc(packet_header->incl_len);
 	fread(body, 1, packet_header->incl_len, file);
 
+	int sent = 0;
 	if(is_supported_packet((struct ethhdr*)body)){
 
 		if(modify_packet(body, overrides)){
@@ -25,13 +26,15 @@ int next_packet(pcaprec_hdr_t *packet_header, FILE *file, int sockfd,
 					(struct sockaddr*)socket_address,
 					sizeof(*socket_address)) == -1)
 				perror("failed to send packet");
+			else
+				sent = 1;
 
 		}
 	}
 
 	free(body);
 
-	return 1;
+	return sent;
 }
 
 void replay(const struct pcap_replay_args *args) {
