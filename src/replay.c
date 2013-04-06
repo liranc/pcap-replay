@@ -46,7 +46,7 @@ void replay(const struct pcap_replay_args *args) {
 
 	pcap_hdr_t global_header;
 	if(!parse_global_header(file, &global_header)){
-		fprintf(stderr, "failed to parse global header");
+		fprintf(stderr, "failed to parse global header\n");
 		goto cleanup;
 	}
 
@@ -82,6 +82,7 @@ void replay(const struct pcap_replay_args *args) {
 		}
 	}
 
+	printf("starting to play file...\n");
 	pcaprec_hdr_t packet_header;
 	while (parse_packet_header(file, &packet_header)) {
 		last_time = wait_until_next(&last_time, &packet_header);
@@ -89,10 +90,14 @@ void replay(const struct pcap_replay_args *args) {
 			++packet_count;
 		else
 			++packet_ignored;
+
+		int sum = packet_count + packet_ignored;
+		if(sum % 1000 == 0)
+			printf("packets statistics (sent: %d, ignored: %d)\n", packet_count, packet_ignored);
 	}
 
-	printf("sent %d out of %d packets\n", packet_count,
-			packet_count + packet_ignored);
+	printf("finished playing file (sent: %d, ignored: %d)\n",
+			packet_count, packet_ignored);
 
 	cleanup:
 	free(overrides.dest_ip);
